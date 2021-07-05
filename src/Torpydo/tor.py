@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import os
+import os, socks
 import subprocess as sp
 import requests as req
 from typing import Union
@@ -52,7 +52,12 @@ def getcontrol(cport:int=9051, passptr:str="") -> Controller:
     controller.authenticate(password)
     return controller
 
-def createservice(name:str, torport:int=80, localport:int=5000, cport:int=9051) -> CreateHiddenServiceOutput:
+def createservice(
+        name:str, 
+        torport:int=80, 
+        localport:int=5000, 
+        cport:int=9051
+    ) -> CreateHiddenServiceOutput:
     "Create and/or start Tor hidden service."
     with getcontrol(cport) as ctrl:
         datadir = ctrl.get_conf("DataDirectory")
@@ -60,7 +65,10 @@ def createservice(name:str, torport:int=80, localport:int=5000, cport:int=9051) 
         service = ctrl.create_hidden_service(appdir, torport, target_port=localport)
     return service
 
-def removeservice(service:Union[str,CreateHiddenServiceOutput], cport:int=9051, clean:bool=True, nuke:bool=False):
+def removeservice(
+        service:Union[str,CreateHiddenServiceOutput], 
+        cport:int=9051, clean:bool=True, nuke:bool=False
+    ):
     "Stop Tor hidden service, optionally deleting service directory and/or Tor DataDirectory."
     with getcontrol(cport) as ctrl:
         if isinstance(service, str):
@@ -75,20 +83,28 @@ def removeservice(service:Union[str,CreateHiddenServiceOutput], cport:int=9051, 
         if nuke:
             rmtree(datadir)
 
-def torget(hostname:str, onionport:Union[str, int]="9050"):
+def torget(
+        hostname:str, 
+        hostport:Union[str, int]="80", 
+        onionport:Union[str, int]="9050"
+    ):
     "Perform GET request via Tor at given hostname."
     return req.get(
-        f"http://{hostname}",
+        f"{hostname}:{hostport}",
         proxies={
             "http":f"socks5h://127.0.0.1:{onionport}",
             "https":f"socks5h://127.0.0.1:{onionport}"
         }
     )
 
-def torpost(hostname:str, payload:dict, onionport:Union[str, int]="9050"):
+def torpost(
+        hostname:str, payload:dict, 
+        hostport:Union[str, int]="80", 
+        onionport:Union[str, int]="9050"
+    ):
     "Perform POST request via Tor at given hostname with given payload."
     return req.post(
-        f"http://{hostname}",
+        f"{hostname}:{hostport}",
         json=payload,
         proxies={
             "http":f"socks5h://127.0.0.1:{onionport}",
@@ -100,3 +116,15 @@ def iprefresh(cport:int=9051):
     "Change Tor IP address by communicating to Tor controller."
     with getcontrol(cport) as ctrl:
         ctrl.signal(Signal.NEWNYM)
+
+def torsock(
+        hostname:str, 
+        hostport:Union[str, int]="80",
+        onionport:Union[str, int]="9050"
+    ):
+    oSocket = socks.socksocket()
+    oSocket.set_proxy(socks.SOCKS5, 'localhost', int(onionport))
+    oSocket.connect((hostname, int(hostport)))
+    return oSocket
+
+
