@@ -2,11 +2,13 @@
 
 import os
 import subprocess as sp
+import requests as req
 from typing import Union
 from shutil import rmtree, which
 from getpass import getpass
 from stem.control import Controller, CreateHiddenServiceOutput
 from stem.process import launch_tor_with_config
+from stem import Signal
 
 def torhash(check:bool=True) -> str:
     "Generate hashed password for Tor control port."
@@ -72,3 +74,29 @@ def removeservice(service:Union[str,CreateHiddenServiceOutput], cport:int=9051, 
             rmtree(appdir)
         if nuke:
             rmtree(datadir)
+
+def torget(hostname:str, onionport:Union[str, int]="9050"):
+    "Perform GET request via Tor at given hostname."
+    return req.get(
+        f"http://{hostname}",
+        proxies={
+            "http":f"socks5h://127.0.0.1:{onionport}",
+            "https":f"socks5h://127.0.0.1:{onionport}"
+        }
+    )
+
+def torpost(hostname:str, payload:dict, onionport:Union[str, int]="9050"):
+    "Perform POST request via Tor at given hostname with given payload."
+    return req.post(
+        f"http://{hostname}",
+        json=payload,
+        proxies={
+            "http":f"socks5h://127.0.0.1:{onionport}",
+            "https":f"socks5h://127.0.0.1:{onionport}"
+        }
+    )
+
+def iprefresh(cport:int=9051):
+    "Change Tor IP address by communicating to Tor controller."
+    with getcontrol(cport) as ctrl:
+        ctrl.signal(Signal.NEWNYM)
