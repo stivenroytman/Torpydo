@@ -11,6 +11,17 @@
 pip install git+https://github.com/stivenroytman/Torpydo
 ```
 
+For development:
+
+```bash
+git clone https://github.com/stivenroytman/Torpydo
+cd Torpydo
+make
+source devel/bin/activate # make sure to run this every time
+```
+
+If you are on Windows, you may want to use Windows Subsystem for Linux (WSL) for this. No guarantee that it will work though, I did not test it out.
+
 ## Usage
 
 Starting a custom Tor process:

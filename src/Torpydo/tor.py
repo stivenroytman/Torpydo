@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 
-import os, socks
+import os, socks, pickle
 import subprocess as sp
 import requests as req
+from psutil import process_iter
+from Crypto.Cipher import AES
+from Crypto.Random import get_random_bytes
 from typing import Union
 from shutil import rmtree, which
 from getpass import getpass
@@ -122,9 +125,69 @@ def torsock(
         hostport:Union[str, int]="80",
         onionport:Union[str, int]="9050"
     ):
+    "Connects to a TCP socket on given .onion url (hostname), with given hostport."
     oSocket = socks.socksocket()
     oSocket.set_proxy(socks.SOCKS5, 'localhost', int(onionport))
     oSocket.connect((hostname, int(hostport)))
     return oSocket
+
+def aesgenkey(length:int=16):
+    "Generate a random sequence of bytes to be used as AES encryption key."
+    return get_random_bytes(length)
+
+def aesencrypt(data:Union[bytes, dict], key:bytes, typeout:type=dict):
+    "Encrypt data with AES encryption key."
+    if isinstance(data, dict):
+        data = pickle.dumps(data)
+    cipher = AES.new(key, AES.MODE_EAX)
+    cipherdata, tag = cipher.encrypt_and_digest(data)
+    cipherpacket = {
+        "nonce": cipher.nonce,
+        "tag": tag,
+        "data": cipherdata
+    }
+    if typeout == dict:
+        return cipherpacket
+    elif typeout == bytes:
+        return pickle.dumps(cipherpacket)
+    else:
+        raise Exception(
+        "Invalid typeout parameter. Must be either dict or bytes"
+        )
+
+def aesdecrypt(cipherdata:Union[bytes, dict], key:bytes):
+    "Decrypt data with AES encryption key. Signature is checked via MODE_EAX."
+    if isinstance(cipherdata, bytes):
+        cipherdata = pickle.loads(cipherdata)
+    cipher = AES.new(
+            key, AES.MODE_EAX, 
+            cipherdata["nonce"]
+    )
+    data = cipher.decrypt_and_verify(
+            cipherdata["data"],
+            cipherdata["tag"]
+    )
+    return data
+
+def lstor():
+    "List all running Tor processes."
+    return list(
+        filter(
+            lambda proc: proc.name() == "tor",
+            process_iter()
+        )
+    )
+
+def killtor():
+    "Kill all running Tor processes."
+    list(
+        map(
+            lambda tor: tor.kill(),
+            filter(
+                lambda proc: proc.name() == "tor",
+                process_iter()
+            )
+        )
+    )
 
 
