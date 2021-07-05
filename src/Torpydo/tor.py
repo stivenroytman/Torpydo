@@ -32,11 +32,7 @@ def gentorconf(
         'DataDirectory': datadir,
         'HashedControlPassword': torhash(),
         'SocksPort': str(sockport),
-        'ControlPort': str(cport),
-        'Log': [
-            'NOTICE syslog',
-            'ERR file /tmp/tor_error_log'
-        ]
+        'ControlPort': str(cport)
     }
 
 def runtor(config:dict={}, torcmd:str="tor") -> sp.Popen:
